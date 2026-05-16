@@ -34,8 +34,9 @@ services:
       retries: 10
 
   api:
+    image: ${API_IMAGE:-securedocs-api:local}
     build:
-      context: ../securedocs-api
+      context: ${API_PATH:-../securedocs-api}
       dockerfile: dockerfile
     environment:
       ASPNETCORE_ENVIRONMENT: Production
@@ -60,8 +61,9 @@ services:
       start_period: 30s
 
   worker:
+    image: ${WORKER_IMAGE:-securedocs-crypto-worker:local}
     build:
-      context: ../securedocs-crypto-worker
+      context: ${WORKER_PATH:-../securedocs-crypto-worker}
       dockerfile: dockerfile
     environment:
       REDIS__URL: "redis://redis:6379"
