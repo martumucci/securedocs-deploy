@@ -1,0 +1,88 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: securedocs
+      POSTGRES_USER: securedocs
+      POSTGRES_PASSWORD: securedocs
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U securedocs"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: securedocs
+      RABBITMQ_DEFAULT_PASS: securedocs
+    ports:
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ../securedocs-api
+      dockerfile: dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      RunMigrationsOnStartup: "true"
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=securedocs;Username=securedocs;Password=securedocs"
+      ConnectionStrings__Redis: "redis:6379"
+      ConnectionStrings__RabbitMq: "amqp://securedocs:securedocs@rabbitmq:5672"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  worker:
+    build:
+      context: ../securedocs-crypto-worker
+      dockerfile: dockerfile
+    environment:
+      REDIS__URL: "redis://redis:6379"
+      RABBITMQ__URL: "amqp://securedocs:securedocs@rabbitmq:5672/"
+      KEYS__PRIVATE_KEY_PATH: "/app/keys/ed25519.private"
+      KEYS__PUBLIC_KEY_PATH: "/app/keys/ed25519.public"
+      HEALTHCHECK__PORT: "8080"
+    volumes:
+      - ./keys:/app/keys
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8080/health').read()"
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s

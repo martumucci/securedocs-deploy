@@ -1,0 +1,17 @@
+# Python (smoke test venv)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Secrets — Ed25519 keypair generated at runtime, never committed
+keys/
+
+# Environment
+.env
+.env.local
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
