@@ -131,7 +131,7 @@ keys/               Ed25519 keypair, generated at runtime. Never committed.
 
 What the smoke test exercises, end to end:
 
-1. `POST /Documents` with `{ payload, passphrase }`. The API stores both in Redis and publishes `DocumentSubmitted` through MassTransit.
+1. `POST /Documents` as `multipart/form-data` (a `File` part + a `Passphrase` field). The API stores the document bytes and passphrase in Redis and publishes `DocumentSubmitted` through MassTransit.
 2. The worker consumes the event, derives the AES key from the passphrase, encrypts, hashes, signs `hash || processedAt`, and publishes `DocumentProcessed`.
 3. The API consumes the result and persists the integrity bundle, transitioning the document to `Processed`.
 4. `GET /Documents/{id}/integrity` returns `{ hash, signature, algorithm, processedAt }`.
