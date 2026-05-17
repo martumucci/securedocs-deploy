@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.serialization import load_pem_public_key
 
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8080")
 PUBLIC_KEY_PATH = os.environ.get("PUBLIC_KEY_PATH", "./keys/ed25519.public")
-PAYLOAD = "smoke test legal document"
+PAYLOAD = b"%PDF-1.4\nsmoke test document\n%%EOF\n"
 PASSPHRASE = "correct horse battery staple"
 
 
@@ -39,11 +39,24 @@ def _get(url: str) -> tuple[int, bytes]:
         return error.code, error.read()
 
 
-def _post_json(url: str, body: dict[str, str]) -> tuple[int, bytes]:
+def _post_multipart(url: str, file_bytes: bytes, passphrase: str) -> tuple[int, bytes]:
+    boundary = "----securedocssmoketestboundary"
+    body = b"".join(
+        [
+            f"--{boundary}\r\n".encode(),
+            b'Content-Disposition: form-data; name="File"; filename="document.bin"\r\n',
+            b"Content-Type: application/octet-stream\r\n\r\n",
+            file_bytes,
+            f"\r\n--{boundary}\r\n".encode(),
+            b'Content-Disposition: form-data; name="Passphrase"\r\n\r\n',
+            passphrase.encode("utf-8"),
+            f"\r\n--{boundary}--\r\n".encode(),
+        ]
+    )
     request = urllib.request.Request(
         url,
-        data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        data=body,
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
         method="POST",
     )
     try:
@@ -65,9 +78,10 @@ def wait_for_api_ready(timeout: float = 90.0) -> None:
 
 
 def submit_document() -> str:
-    status, body = _post_json(
+    status, body = _post_multipart(
         f"{API_BASE_URL}/Documents",
-        {"payload": PAYLOAD, "passphrase": PASSPHRASE},
+        PAYLOAD,
+        PASSPHRASE,
     )
     if status != 201:
         fail(f"submit failed: HTTP {status} {body!r}")
