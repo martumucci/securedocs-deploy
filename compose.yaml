@@ -34,7 +34,7 @@ services:
       retries: 10
 
   api:
-    image: ${API_IMAGE:-securedocs-api:local}
+    image: ${API_IMAGE:-ghcr.io/martumucci/securedocs-api:latest}
     build:
       context: ${API_PATH:-../securedocs-api}
       dockerfile: dockerfile
@@ -61,7 +61,7 @@ services:
       start_period: 30s
 
   worker:
-    image: ${WORKER_IMAGE:-securedocs-crypto-worker:local}
+    image: ${WORKER_IMAGE:-ghcr.io/martumucci/securedocs-crypto-worker:latest}
     build:
       context: ${WORKER_PATH:-../securedocs-crypto-worker}
       dockerfile: dockerfile
